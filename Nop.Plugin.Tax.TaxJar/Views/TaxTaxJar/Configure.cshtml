@@ -1,0 +1,62 @@
+﻿@model Nop.Plugin.Tax.TaxJar.Models.TaxTaxJarModel
+@using Nop.Web.Framework;
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <table class="adminContent">
+        <tr>
+            <td class="adminTitle">
+                @Html.NopLabelFor(model => model.ApiToken):
+            </td>
+            <td class="adminData">
+                @Html.EditorFor(model => model.ApiToken)
+                @Html.ValidationMessageFor(model => model.ApiToken)
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <input type="submit" name="save" class="k-button" value="@T("Admin.Common.Save")" />
+            </td>
+        </tr>
+    </table>
+    <br />
+    <table>
+        <tr>
+            <td class="adminTitle">
+                @Html.NopLabelFor(model => model.TestAddress.CountryId):
+            </td>
+            <td class="adminData">
+                @Html.DropDownListFor(model => model.TestAddress.CountryId, Model.TestAddress.AvailableCountries)
+                @Html.ValidationMessageFor(model => model.TestAddress.CountryId)
+            </td>
+        </tr>
+        <tr>
+            <td class="adminTitle">
+                @Html.NopLabelFor(model => model.TestAddress.City):
+            </td>
+            <td class="adminData">
+                @Html.EditorFor(model => model.TestAddress.City)
+                @Html.ValidationMessageFor(model => model.TestAddress.City)
+            </td>
+        </tr>
+        <tr>
+            <td class="adminTitle">
+                @Html.NopLabelFor(model => model.TestAddress.Zip):
+            </td>
+            <td class="adminData">
+                @Html.EditorFor(model => model.TestAddress.Zip)
+                @Html.ValidationMessageFor(model => model.TestAddress.Zip)
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" align="left">
+                <input type="submit" name="test" class="k-button" value="@T("Plugins.Tax.TaxJar.Testing")" />
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="white-space: pre-line">
+                @Html.Raw(Model.TestingResult)
+            </td>
+        </tr>
+    </table>
+}
