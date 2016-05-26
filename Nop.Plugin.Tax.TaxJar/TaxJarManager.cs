@@ -1,7 +1,5 @@
 ﻿using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Web;
 using Newtonsoft.Json;
 
@@ -12,10 +10,12 @@ namespace Nop.Plugin.Tax.TaxJar
     /// </summary>
     public class TaxJarManager
     {
+        private const string API_URL = "https://api.taxjar.com/v2/";
+
         /// <summary>
         /// API token
         /// </summary>
-        public string API { get; set; }
+        public string Api { get; set; }
 
         /// <summary>
         /// Get tax rate from TaxJar API
@@ -32,8 +32,8 @@ namespace Nop.Plugin.Tax.TaxJar
             parameters.Add("city", city);
             parameters.Add("street", street);
 
-            var request = (HttpWebRequest)WebRequest.Create(string.Format("https://api.taxjar.com/v2/rates/{0}?{1}", zip, parameters.ToString()));
-            request.Headers.Add(HttpRequestHeader.Authorization, string.Format("Bearer {0}", API));
+            var request = (HttpWebRequest)WebRequest.Create(string.Format("{0}rates/{1}?{2}", API_URL, zip, parameters));
+            request.Headers.Add(HttpRequestHeader.Authorization, string.Format("Bearer {0}", Api));
             request.Method = "GET";
             request.UserAgent = "nopCommerce";
 
@@ -60,10 +60,17 @@ namespace Nop.Plugin.Tax.TaxJar
     /// </summary>
     public class TaxJarResponse
     {
+        [JsonProperty(PropertyName = "rate")]
         public TaxJarRate Rate { get; set; }
+
+        [JsonProperty(PropertyName = "error")]
         public string Error { get; set; }
-        public string Detail { get; set; }
-        public string Status { get; set; }
+
+        [JsonProperty(PropertyName = "detail")]
+        public string ErrorDetails { get; set; }
+
+        [JsonProperty(PropertyName = "status")]
+        public string ErrorStatus { get; set; }
 
         /// <summary>
         /// Returns true when a request is successful
@@ -76,9 +83,9 @@ namespace Nop.Plugin.Tax.TaxJar
         /// <summary>
         /// Error summary message
         /// </summary>
-        public string Message
+        public string ErrorMessage
         {
-            get { return IsSuccess ? string.Empty : string.Format("{0} - {1} ({2})", Status, Error, Detail); }
+            get { return IsSuccess ? string.Empty : string.Format("{0} - {1} ({2})", ErrorStatus, Error, ErrorDetails); }
         }
     }
 
@@ -87,33 +94,67 @@ namespace Nop.Plugin.Tax.TaxJar
     /// </summary>
     public class TaxJarRate
     {
-        // international attributes
-        public string Country { get; set; }
-        public string Name { get; set; }
-        public string Standard_Rate { get; set; }
-        public string Reduced_Rate { get; set; }
-        public string Super_Reduced_Rate { get; set; }
-        public string Parking_Rate { get; set; }
-        public string Distance_Sale_Threshold { get; set; }
-        public bool Freight_Taxable { get; set; }
+        #region international attributes
+        [JsonProperty(PropertyName = "country")]
+        public string CountryCode { get; set; }
 
-        // US/Canada attributes
+        [JsonProperty(PropertyName = "name")]
+        public string CountryName { get; set; }
+
+        [JsonProperty(PropertyName = "standard_rate")]
+        public string StandardRate { get; set; }
+
+        [JsonProperty(PropertyName = "reduced_rate")]
+        public string ReducedRate { get; set; }
+
+        [JsonProperty(PropertyName = "super_reduced_rate")]
+        public string SuperReducedRate { get; set; }
+
+        [JsonProperty(PropertyName = "parking_rate")]
+        public string ParkingRate { get; set; }
+
+        [JsonProperty(PropertyName = "distance_sale_threshold")]
+        public string DistanceSaleThreshold { get; set; }
+
+        [JsonProperty(PropertyName = "freight_taxable")]
+        public bool FreightTaxable { get; set; }
+        #endregion
+
+        #region US/Canada attributes
+        [JsonProperty(PropertyName = "state")]
         public string State { get; set; }
+
+        [JsonProperty(PropertyName = "county")]
         public string County { get; set; }
+
+        [JsonProperty(PropertyName = "city")]
         public string City { get; set; }
-        public string Zip { get; set; }
-        public string State_Rate { get; set; }
-        public string County_Rate { get; set; }
-        public string City_Rate { get; set; }
-        public string Combined_District_rate { get; set; }
-        public string Combined_Rate { get; set; }
+
+        [JsonProperty(PropertyName = "zip")]
+        public string ZipCode { get; set; }
+
+        [JsonProperty(PropertyName = "state_rate")]
+        public string StateRate { get; set; }
+
+        [JsonProperty(PropertyName = "county_rate")]
+        public string CountyRate { get; set; }
+
+        [JsonProperty(PropertyName = "city_rate")]
+        public string CityRate { get; set; }
+
+        [JsonProperty(PropertyName = "combined_district_rate")]
+        public string CombinedDistrictRate { get; set; }
+
+        [JsonProperty(PropertyName = "combined_rate")]
+        public string CombinedRate { get; set; }
+        #endregion
 
         /// <summary>
         /// Returns true for USA or Canada rates
         /// </summary>
         public bool IsUsCanada
         {
-            get { return string.IsNullOrEmpty(Name); }
+            get { return string.IsNullOrEmpty(CountryName); }
         }
 
         /// <summary>
@@ -123,11 +164,11 @@ namespace Nop.Plugin.Tax.TaxJar
         {
             get
             {
-                decimal rate = 0;
+                decimal rate;
                 if (IsUsCanada)
-                    decimal.TryParse(Combined_Rate, out rate);
+                    decimal.TryParse(CombinedRate, out rate);
                 else
-                    decimal.TryParse(Standard_Rate, out rate);
+                    decimal.TryParse(StandardRate, out rate);
                 return rate;
             }
         }

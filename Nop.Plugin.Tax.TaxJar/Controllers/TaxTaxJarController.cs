@@ -17,6 +17,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
         private readonly ISettingService _settingService;
         private readonly TaxJarSettings _taxJarSettings;
 
+        #region Ctor
         public TaxTaxJarController(ICountryService countryService,
             ILocalizationService localizationService,
             ISettingService settingService,
@@ -27,7 +28,9 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             this._settingService = settingService;
             this._taxJarSettings = taxJarSettings;
         }
+        #endregion
 
+        #region Utilities
         [NonAction]
         protected void PrepareAddress(TestAddressModel model)
         {
@@ -35,11 +38,13 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
                 .Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() }).ToList();
             model.AvailableCountries.Insert(0, new SelectListItem { Text = _localizationService.GetResource("Admin.Address.SelectCountry"), Value = "0" });
         }
+        #endregion
 
+        #region Methods
         [ChildActionOnly]
         public ActionResult Configure()
         {
-            var model = new TaxTaxJarModel { ApiToken = _taxJarSettings.ApiToken};
+            var model = new TaxTaxJarModel { ApiToken = _taxJarSettings.ApiToken };
             PrepareAddress(model.TestAddress);
 
             return View("~/Plugins/Tax.TaxJar/Views/TaxTaxJar/Configure.cshtml", model);
@@ -70,7 +75,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
 
             var testResult = new StringBuilder();
             var country = _countryService.GetCountryById(model.TestAddress.CountryId);
-            var taxJarManager = new TaxJarManager { API = _taxJarSettings.ApiToken };
+            var taxJarManager = new TaxJarManager { Api = _taxJarSettings.ApiToken };
             var result = taxJarManager.GetTaxRate(
                 country != null ? country.TwoLetterIsoCode : null, 
                 model.TestAddress.City, 
@@ -83,28 +88,29 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
                     testResult.AppendFormat("State: {0}<br />", result.Rate.State);
                     testResult.AppendFormat("County: {0}<br />", result.Rate.County);
                     testResult.AppendFormat("City: {0}<br />", result.Rate.City);
-                    testResult.AppendFormat("State rate: {0}<br />", result.Rate.State_Rate);
-                    testResult.AppendFormat("County rate: {0}<br />", result.Rate.County_Rate);
-                    testResult.AppendFormat("City rate: {0}<br />", result.Rate.City_Rate);
-                    testResult.AppendFormat("Combined district rate: {0}<br />", result.Rate.Combined_District_rate);
-                    testResult.AppendFormat("<b>Total rate: {0}<b/>", result.Rate.Combined_Rate);
+                    testResult.AppendFormat("State rate: {0}<br />", result.Rate.StateRate);
+                    testResult.AppendFormat("County rate: {0}<br />", result.Rate.CountyRate);
+                    testResult.AppendFormat("City rate: {0}<br />", result.Rate.CityRate);
+                    testResult.AppendFormat("Combined district rate: {0}<br />", result.Rate.CombinedDistrictRate);
+                    testResult.AppendFormat("<b>Total rate: {0}<b/>", result.Rate.CombinedRate);
                 }
                 else
                 {
-                    testResult.AppendFormat("Country: {0}<br />", result.Rate.Name);
-                    testResult.AppendFormat("Reduced rate: {0}<br />", result.Rate.Reduced_Rate);
-                    testResult.AppendFormat("Super reduced rate: {0}<br />", result.Rate.Super_Reduced_Rate);
-                    testResult.AppendFormat("Parking rate: {0}<br />", result.Rate.Parking_Rate);
-                    testResult.AppendFormat("<b>Standard rate: {0}<b/>", result.Rate.Standard_Rate);
+                    testResult.AppendFormat("Country: {0}<br />", result.Rate.CountryName);
+                    testResult.AppendFormat("Reduced rate: {0}<br />", result.Rate.ReducedRate);
+                    testResult.AppendFormat("Super reduced rate: {0}<br />", result.Rate.SuperReducedRate);
+                    testResult.AppendFormat("Parking rate: {0}<br />", result.Rate.ParkingRate);
+                    testResult.AppendFormat("<b>Standard rate: {0}<b/>", result.Rate.StandardRate);
                 }
             }
             else
-                testResult.Append(result.Message);
+                testResult.Append(result.ErrorMessage);
 
             model.TestingResult = testResult.ToString();
             PrepareAddress(model.TestAddress);
 
             return View("~/Plugins/Tax.TaxJar/Views/TaxTaxJar/Configure.cshtml", model);
         }
+        #endregion
     }
 }
