@@ -12,12 +12,17 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
     [AdminAuthorize]
     public class TaxTaxJarController : BasePluginController
     {
+        #region Fields
+
         private readonly ICountryService _countryService;
         private readonly ILocalizationService _localizationService;
         private readonly ISettingService _settingService;
         private readonly TaxJarSettings _taxJarSettings;
 
+        #endregion
+
         #region Ctor
+
         public TaxTaxJarController(ICountryService countryService,
             ILocalizationService localizationService,
             ISettingService settingService,
@@ -28,9 +33,11 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             this._settingService = settingService;
             this._taxJarSettings = taxJarSettings;
         }
+
         #endregion
 
         #region Utilities
+
         [NonAction]
         protected void PrepareAddress(TestAddressModel model)
         {
@@ -38,9 +45,11 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
                 .Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() }).ToList();
             model.AvailableCountries.Insert(0, new SelectListItem { Text = _localizationService.GetResource("Admin.Address.SelectCountry"), Value = "0" });
         }
+
         #endregion
 
         #region Methods
+
         [ChildActionOnly]
         public ActionResult Configure()
         {
@@ -111,6 +120,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
 
             return View("~/Plugins/Tax.TaxJar/Views/TaxTaxJar/Configure.cshtml", model);
         }
+
         #endregion
     }
 }

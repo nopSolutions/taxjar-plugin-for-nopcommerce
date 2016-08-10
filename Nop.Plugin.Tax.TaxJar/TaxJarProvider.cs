@@ -4,7 +4,6 @@ using Nop.Core.Caching;
 using Nop.Core.Plugins;
 using Nop.Services.Configuration;
 using Nop.Services.Localization;
-using Nop.Services.Logging;
 using Nop.Services.Tax;
 
 namespace Nop.Plugin.Tax.TaxJar
@@ -21,25 +20,29 @@ namespace Nop.Plugin.Tax.TaxJar
         /// </summary>
         private const string TAXRATE_KEY = "Nop.plugins.tax.taxjar.taxratebyaddress-{0}-{1}-{2}";
 
+        #region Fields
+
         private readonly ICacheManager _cacheManager;
-        private readonly ILogger _logger;
         private readonly ISettingService _settingService;
         private readonly TaxJarSettings _taxJarSettings;
 
+        #endregion
+
         #region Ctor
+
         public TaxJarProvider(ICacheManager cacheManager,
-            ILogger logger,
             ISettingService settingService,
             TaxJarSettings taxJarSettings)
         {           
             this._cacheManager = cacheManager;
-            this._logger = logger;
             this._settingService = settingService;
             this._taxJarSettings = taxJarSettings;
         }
+
         #endregion
 
         #region Methods
+
         /// <summary>
         /// Gets tax rate
         /// </summary>
@@ -55,7 +58,7 @@ namespace Nop.Plugin.Tax.TaxJar
                 calculateTaxRequest.Address.Country != null ? calculateTaxRequest.Address.Country.Id : 0,
                 !string.IsNullOrEmpty(calculateTaxRequest.Address.City) ? calculateTaxRequest.Address.City : string.Empty);
 
-            // we don't use standard way _cacheManager.Get due the need write errors to CalculateTaxResult
+            // we don't use standard way _cacheManager.Get() due the need write errors to CalculateTaxResult
             if (_cacheManager.IsSet(cacheKey))
                 return new CalculateTaxResult { TaxRate = _cacheManager.Get<decimal>(cacheKey) };
 
@@ -66,10 +69,7 @@ namespace Nop.Plugin.Tax.TaxJar
                 calculateTaxRequest.Address.Address1, 
                 calculateTaxRequest.Address.ZipPostalCode);
             if (!result.IsSuccess)
-            {
-                _logger.Error(string.Format("TaxJar error: {0}", result.ErrorMessage));
                 return new CalculateTaxResult { Errors = new List<string> { result.ErrorMessage } };
-            }
 
             _cacheManager.Set(cacheKey, result.Rate.TaxRate * 100, 60);
             return new CalculateTaxResult { TaxRate = result.Rate.TaxRate * 100 };
@@ -94,8 +94,7 @@ namespace Nop.Plugin.Tax.TaxJar
         public override void Install()
         {
             //settings
-            var settings = new TaxJarSettings();
-            _settingService.SaveSetting(settings);
+            _settingService.SaveSetting(new TaxJarSettings());
 
             //locales
             this.AddOrUpdatePluginLocaleResource("Plugins.Tax.TaxJar.Fields.ApiToken", "API token");
@@ -120,6 +119,7 @@ namespace Nop.Plugin.Tax.TaxJar
 
             base.Uninstall();
         }
+
         #endregion
     }
 }

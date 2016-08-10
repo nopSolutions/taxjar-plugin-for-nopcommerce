@@ -94,7 +94,8 @@ namespace Nop.Plugin.Tax.TaxJar
     /// </summary>
     public class TaxJarRate
     {
-        #region international attributes
+        #region International attributes
+
         [JsonProperty(PropertyName = "country")]
         public string CountryCode { get; set; }
 
@@ -118,9 +119,11 @@ namespace Nop.Plugin.Tax.TaxJar
 
         [JsonProperty(PropertyName = "freight_taxable")]
         public bool FreightTaxable { get; set; }
+        
         #endregion
 
         #region US/Canada attributes
+
         [JsonProperty(PropertyName = "state")]
         public string State { get; set; }
 
@@ -147,6 +150,7 @@ namespace Nop.Plugin.Tax.TaxJar
 
         [JsonProperty(PropertyName = "combined_rate")]
         public string CombinedRate { get; set; }
+
         #endregion
 
         /// <summary>
@@ -169,6 +173,7 @@ namespace Nop.Plugin.Tax.TaxJar
                     decimal.TryParse(CombinedRate, out rate);
                 else
                     decimal.TryParse(StandardRate, out rate);
+
                 return rate;
             }
         }
