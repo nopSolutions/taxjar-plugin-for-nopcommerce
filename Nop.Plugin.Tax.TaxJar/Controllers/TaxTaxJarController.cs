@@ -56,7 +56,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             var model = new TaxTaxJarModel { ApiToken = _taxJarSettings.ApiToken };
             PrepareAddress(model.TestAddress);
 
-            return View("~/Plugins/Tax.TaxJar/Views/TaxTaxJar/Configure.cshtml", model);
+            return View("~/Plugins/Tax.TaxJar/Views/Configure.cshtml", model);
         }
 
         [HttpPost, ActionName("Configure")]
@@ -72,7 +72,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             PrepareAddress(model.TestAddress);
             SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
 
-            return View("~/Plugins/Tax.TaxJar/Views/TaxTaxJar/Configure.cshtml", model);
+            return View("~/Plugins/Tax.TaxJar/Views/Configure.cshtml", model);
         }
 
         [HttpPost, ActionName("Configure")]
@@ -118,7 +118,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             model.TestingResult = testResult.ToString();
             PrepareAddress(model.TestAddress);
 
-            return View("~/Plugins/Tax.TaxJar/Views/TaxTaxJar/Configure.cshtml", model);
+            return View("~/Plugins/Tax.TaxJar/Views/Configure.cshtml", model);
         }
 
         #endregion
