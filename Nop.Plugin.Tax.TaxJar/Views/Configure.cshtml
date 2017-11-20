@@ -1,19 +1,20 @@
-﻿@model Nop.Plugin.Tax.TaxJar.Models.TaxTaxJarModel
-@using Nop.Web.Framework;
+﻿@{
+    Layout = "_ConfigurePlugin";
+}
 
-@using (Html.BeginForm())
-{
-    @Html.AntiForgeryToken()
+@model Nop.Plugin.Tax.TaxJar.Models.TaxTaxJarModel
+
+<form asp-controller="TaxTaxJar" asp-action="Configure" method="post">
     <div class="panel-group">
         <div class="panel panel-default">
             <div class="panel-body">
                 <div class="form-group">
                     <div class="col-md-3">
-                        @Html.NopLabelFor(model => model.ApiToken)
+                        <nop-label asp-for="ApiToken" />
                     </div>
                     <div class="col-md-9">
-                        @Html.NopEditorFor(model => model.ApiToken)
-                        @Html.ValidationMessageFor(model => model.ApiToken)
+                        <nop-editor asp-for="ApiToken" />
+                        <span asp-validation-for="ApiToken"></span>
                     </div>
                 </div>
                 <div class="form-group">
@@ -27,29 +28,29 @@
             <div class="panel-body">
                 <div class="form-group">
                     <div class="col-md-3">
-                        @Html.NopLabelFor(model => model.TestAddress.CountryId)
+                        <nop-label asp-for="TestAddress.CountryId" />
                     </div>
                     <div class="col-md-9">
-                        @Html.NopDropDownListFor(model => model.TestAddress.CountryId, Model.TestAddress.AvailableCountries)
-                        @Html.ValidationMessageFor(model => model.TestAddress.CountryId)
+                        <nop-select asp-for="TestAddress.CountryId" asp-items="Model.TestAddress.AvailableCountries" />
+                        <span asp-validation-for="TestAddress.CountryId"></span>
                     </div>
                 </div>
                 <div class="form-group">
                     <div class="col-md-3">
-                        @Html.NopLabelFor(model => model.TestAddress.City)
+                        <nop-label asp-for="TestAddress.City" />
                     </div>
                     <div class="col-md-9">
-                        @Html.NopEditorFor(model => model.TestAddress.City)
-                        @Html.ValidationMessageFor(model => model.TestAddress.City)
+                        <nop-editor asp-for="TestAddress.City" />
+                        <span asp-validation-for="TestAddress.City"></span>
                     </div>
                 </div>
                 <div class="form-group">
                     <div class="col-md-3">
-                        @Html.NopLabelFor(model => model.TestAddress.Zip)
+                        <nop-label asp-for="TestAddress.Zip" />
                     </div>
                     <div class="col-md-9">
-                        @Html.NopEditorFor(model => model.TestAddress.Zip)
-                        @Html.ValidationMessageFor(model => model.TestAddress.Zip)
+                        <nop-editor asp-for="TestAddress.Zip" />
+                        <span asp-validation-for="TestAddress.Zip"></span>
                     </div>
                 </div>
                 <div class="form-group">
@@ -65,4 +66,4 @@
             </div>
         </div>
     </div>
-}
+</form>

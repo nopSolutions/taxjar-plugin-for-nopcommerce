@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using System.Web.Routing;
+using Nop.Core;
 using Nop.Core.Caching;
 using Nop.Core.Plugins;
 using Nop.Services.Configuration;
@@ -25,6 +25,7 @@ namespace Nop.Plugin.Tax.TaxJar
         private readonly ICacheManager _cacheManager;
         private readonly ISettingService _settingService;
         private readonly TaxJarSettings _taxJarSettings;
+        private readonly IWebHelper _webHelper;
 
         #endregion
 
@@ -32,11 +33,13 @@ namespace Nop.Plugin.Tax.TaxJar
 
         public TaxJarProvider(ICacheManager cacheManager,
             ISettingService settingService,
-            TaxJarSettings taxJarSettings)
+            TaxJarSettings taxJarSettings,
+            IWebHelper webHelper)
         {           
             this._cacheManager = cacheManager;
             this._settingService = settingService;
             this._taxJarSettings = taxJarSettings;
+            this._webHelper = webHelper;
         }
 
         #endregion
@@ -75,17 +78,9 @@ namespace Nop.Plugin.Tax.TaxJar
             return new CalculateTaxResult { TaxRate = result.Rate.TaxRate * 100 };
         }
 
-        /// <summary>
-        /// Gets a route for provider configuration
-        /// </summary>
-        /// <param name="actionName">Action name</param>
-        /// <param name="controllerName">Controller name</param>
-        /// <param name="routeValues">Route values</param>
-        public void GetConfigurationRoute(out string actionName, out string controllerName, out RouteValueDictionary routeValues)
+        public override string GetConfigurationPageUrl()
         {
-            actionName = "Configure";
-            controllerName = "TaxTaxJar";
-            routeValues = new RouteValueDictionary { { "Namespaces", "Nop.Plugin.Tax.TaxJar.Controllers" }, { "area", null } };
+            return $"{_webHelper.GetStoreLocation()}Admin/TaxTaxJar/Configure";
         }
 
         /// <summary>

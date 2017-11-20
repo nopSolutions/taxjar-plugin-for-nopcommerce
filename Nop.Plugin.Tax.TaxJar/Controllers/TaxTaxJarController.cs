@@ -1,15 +1,21 @@
 ﻿using System.Linq;
 using System.Text;
-using System.Web.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Nop.Plugin.Tax.TaxJar.Models;
 using Nop.Services.Configuration;
 using Nop.Services.Directory;
 using Nop.Services.Localization;
+using Nop.Services.Security;
+using Nop.Web.Framework;
 using Nop.Web.Framework.Controllers;
+using Nop.Web.Framework.Mvc.Filters;
 
 namespace Nop.Plugin.Tax.TaxJar.Controllers
 {
-    [AdminAuthorize]
+
+    [AuthorizeAdmin]
+    [Area(AreaNames.Admin)]
     public class TaxTaxJarController : BasePluginController
     {
         #region Fields
@@ -18,6 +24,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
         private readonly ILocalizationService _localizationService;
         private readonly ISettingService _settingService;
         private readonly TaxJarSettings _taxJarSettings;
+        private readonly IPermissionService _permissionService;
 
         #endregion
 
@@ -26,12 +33,14 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
         public TaxTaxJarController(ICountryService countryService,
             ILocalizationService localizationService,
             ISettingService settingService,
-            TaxJarSettings taxJarSettings)
+            TaxJarSettings taxJarSettings,
+            IPermissionService permissionService)
         {
             this._countryService = countryService;
             this._localizationService = localizationService;
             this._settingService = settingService;
             this._taxJarSettings = taxJarSettings;
+            this._permissionService = permissionService;
         }
 
         #endregion
@@ -50,9 +59,11 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
 
         #region Methods
 
-        [ChildActionOnly]
-        public ActionResult Configure()
+        public IActionResult Configure()
         {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePlugins))
+                return AccessDeniedView();
+
             var model = new TaxTaxJarModel { ApiToken = _taxJarSettings.ApiToken };
             PrepareAddress(model.TestAddress);
 
@@ -61,8 +72,11 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
 
         [HttpPost, ActionName("Configure")]
         [FormValueRequired("save")]
-        public ActionResult Configure(TaxTaxJarModel model)
+        public IActionResult Configure(TaxTaxJarModel model)
         {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePlugins))
+                return AccessDeniedView();
+
             if (!ModelState.IsValid)
                 return Configure();
 
@@ -77,8 +91,11 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
 
         [HttpPost, ActionName("Configure")]
         [FormValueRequired("test")]
-        public ActionResult TestRequest(TaxTaxJarModel model)
+        public IActionResult TestRequest(TaxTaxJarModel model)
         {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePlugins))
+                return AccessDeniedView();
+
             if (!ModelState.IsValid)
                 return Configure();
 
@@ -86,7 +103,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             var country = _countryService.GetCountryById(model.TestAddress.CountryId);
             var taxJarManager = new TaxJarManager { Api = _taxJarSettings.ApiToken };
             var result = taxJarManager.GetTaxRate(
-                country != null ? country.TwoLetterIsoCode : null, 
+                country?.TwoLetterIsoCode, 
                 model.TestAddress.City, 
                 null, 
                 model.TestAddress.Zip);

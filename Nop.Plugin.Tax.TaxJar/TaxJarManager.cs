@@ -1,6 +1,7 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Net;
-using System.Web;
+using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json;
 
 namespace Nop.Plugin.Tax.TaxJar
@@ -27,13 +28,15 @@ namespace Nop.Plugin.Tax.TaxJar
         /// <returns>Response from API</returns>
         public TaxJarResponse GetTaxRate(string country, string city, string street, string zip)
         {
-            var parameters = HttpUtility.ParseQueryString(string.Empty);
-            parameters.Add("country", country);
-            parameters.Add("city", city);
-            parameters.Add("street", street);
+            var parameters = new Dictionary<string, StringValues>
+            {
+                { "country", country },
+                { "city", city },
+                { "street", street }
+            };
 
-            var request = (HttpWebRequest)WebRequest.Create(string.Format("{0}rates/{1}?{2}", API_URL, zip, parameters));
-            request.Headers.Add(HttpRequestHeader.Authorization, string.Format("Bearer {0}", Api));
+            var request = (HttpWebRequest)WebRequest.Create($"{API_URL}rates/{zip}?{parameters}");
+            request.Headers.Add(HttpRequestHeader.Authorization, $"Bearer {Api}");
             request.Method = "GET";
             request.UserAgent = "nopCommerce";
 
@@ -85,7 +88,7 @@ namespace Nop.Plugin.Tax.TaxJar
         /// </summary>
         public string ErrorMessage
         {
-            get { return IsSuccess ? string.Empty : string.Format("{0} - {1} ({2})", ErrorStatus, Error, ErrorDetails); }
+            get { return IsSuccess ? string.Empty : $"{ErrorStatus} - {Error} ({ErrorDetails})"; }
         }
     }
 
