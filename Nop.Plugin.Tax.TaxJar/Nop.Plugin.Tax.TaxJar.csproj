@@ -45,7 +45,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="RestSharp" Version="106.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\Presentation\Nop.Web.Framework\Nop.Web.Framework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="TaxJar">
+      <HintPath>TaxJar.dll</HintPath>
+    </Reference>
   </ItemGroup>
   
   <!-- This target execute after "Build" target -->

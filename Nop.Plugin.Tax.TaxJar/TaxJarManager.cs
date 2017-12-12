@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
+﻿using Nop.Core;
+using Nop.Core.Domain.Common;
+using Nop.Plugin.Tax.TaxJar.Models;
+using Nop.Services.Directory;
+using Taxjar;
 
 namespace Nop.Plugin.Tax.TaxJar
 {
@@ -11,174 +11,105 @@ namespace Nop.Plugin.Tax.TaxJar
     /// </summary>
     public class TaxJarManager
     {
-        private const string API_URL = "https://api.taxjar.com/v2/";
-
         /// <summary>
         /// API token
         /// </summary>
         public string Api { get; set; }
 
         /// <summary>
-        /// Get tax rate from TaxJar API
+        /// Country service
         /// </summary>
-        /// <param name="country">Two-letter ISO country code</param>
-        /// <param name="city">City</param>
-        /// <param name="street">Address</param>
-        /// <param name="zip">Zip postal code</param>
-        /// <returns>Response from API</returns>
-        public TaxJarResponse GetTaxRate(string country, string city, string street, string zip)
+        public ICountryService CountryService { get; set; }
+
+        /// <summary>
+        /// Country service
+        /// </summary>
+        public IStateProvinceService StateProvinceService { get; set; }
+
+        /// <summary>
+        /// Get test tax rate from TaxJar API
+        /// </summary>
+        /// <param name="settings">TaxJar settings</param>
+        /// <param name="model">TestAddressModel</param>
+        /// <returns></returns>
+        public Rate GetTestTaxRate(TaxJarSettings settings, TestAddressModel model)
         {
-            var parameters = new Dictionary<string, StringValues>
+            var address=new Address
             {
-                { "country", country },
-                { "city", city },
-                { "street", street }
+                ZipPostalCode = model.Zip,
+                Country = CountryService.GetCountryById(model.CountryId),
+                City = model.City
             };
 
-            var request = (HttpWebRequest)WebRequest.Create($"{API_URL}rates/{zip}?{parameters}");
-            request.Headers.Add(HttpRequestHeader.Authorization, $"Bearer {Api}");
-            request.Method = "GET";
-            request.UserAgent = "nopCommerce";
+            return GetTaxRate(settings, 100, address);
+        }
 
-            try
+        /// <summary>
+        /// Get tax rate from TaxJar API
+        /// </summary>
+        /// <param name="settings">TaxJar settings</param>
+        /// <param name="price">Price</param>
+        /// <param name="address">Address where the order shipped to</param>
+        /// <returns>Response from API</returns>
+        public Rate GetTaxRate(TaxJarSettings settings, decimal price, Address address)
+        {
+            var client = new TaxjarApi(Api);
+            var rez = new Rate
             {
-                var httpResponse = (HttpWebResponse)request.GetResponse();
-                using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+                StandardRate = 0,
+                CombinedRate = 0,
+                City = address.City,
+                Country = address.Country?.TwoLetterIsoCode??string.Empty,
+                State = address.StateProvince?.Abbreviation ?? string.Empty,
+                Zip = address.ZipPostalCode
+            };
+
+            if (settings.UseExtendedMethod)
+            {
+                var countryTwoLetterIsoCode = CountryService?.GetCountryById(settings.FromCountry)?.TwoLetterIsoCode;
+                var stateTwoLetterIsoCode = CommonHelper.EnsureMaximumLength(StateProvinceService?.GetStateProvinceById(settings.FromState)?.Abbreviation, 2);
+
+                try
                 {
-                    return JsonConvert.DeserializeObject<TaxJarResponse>(streamReader.ReadToEnd());
+                    var tax = client.TaxForOrder(new
+                    {
+                        from_country = countryTwoLetterIsoCode,
+                        from_zip = settings.FromZip,
+                        from_state = stateTwoLetterIsoCode,
+                        to_country = address.Country?.TwoLetterIsoCode ?? string.Empty,
+                        to_zip = address.ZipPostalCode,
+                        to_state = address.StateProvince?.Abbreviation ?? string.Empty,
+                        amount = price,
+                        shipping = 0
+                    });
+
+                    rez.CombinedRate = rez.StandardRate = tax.Rate;
+                }
+                catch (TaxjarException)
+                {
+                    if (!settings.UseStandartRate)
+                        throw;
                 }
             }
-            catch (WebException e)
-            {
-                using (var streamReader = new StreamReader(e.Response.GetResponseStream()))
+
+            if(rez.CombinedRate == 0 && (!settings.UseExtendedMethod || settings.UseStandartRate))
+                rez = client.RatesForLocation(address.ZipPostalCode ?? string.Empty, new
                 {
-                    return JsonConvert.DeserializeObject<TaxJarResponse>(streamReader.ReadToEnd());
-                }
-            }
+                    city = address.City ?? string.Empty,
+                    country = address.Country.TwoLetterIsoCode ?? string.Empty
+                });
+
+            return rez;
         }
     }
 
-    /// <summary>
-    /// Response from API
-    /// </summary>
-    public class TaxJarResponse
+    internal static class RateExt
     {
-        [JsonProperty(PropertyName = "rate")]
-        public TaxJarRate Rate { get; set; }
-
-        [JsonProperty(PropertyName = "error")]
-        public string Error { get; set; }
-
-        [JsonProperty(PropertyName = "detail")]
-        public string ErrorDetails { get; set; }
-
-        [JsonProperty(PropertyName = "status")]
-        public string ErrorStatus { get; set; }
-
-        /// <summary>
-        /// Returns true when a request is successful
-        /// </summary>
-        public bool IsSuccess
+        public static decimal GetRate(this Rate rate)
         {
-            get { return string.IsNullOrEmpty(Error); }
-        }
-
-        /// <summary>
-        /// Error summary message
-        /// </summary>
-        public string ErrorMessage
-        {
-            get { return IsSuccess ? string.Empty : $"{ErrorStatus} - {Error} ({ErrorDetails})"; }
-        }
-    }
-
-    /// <summary>
-    /// Rate from API
-    /// </summary>
-    public class TaxJarRate
-    {
-        #region International attributes
-
-        [JsonProperty(PropertyName = "country")]
-        public string CountryCode { get; set; }
-
-        [JsonProperty(PropertyName = "name")]
-        public string CountryName { get; set; }
-
-        [JsonProperty(PropertyName = "standard_rate")]
-        public string StandardRate { get; set; }
-
-        [JsonProperty(PropertyName = "reduced_rate")]
-        public string ReducedRate { get; set; }
-
-        [JsonProperty(PropertyName = "super_reduced_rate")]
-        public string SuperReducedRate { get; set; }
-
-        [JsonProperty(PropertyName = "parking_rate")]
-        public string ParkingRate { get; set; }
-
-        [JsonProperty(PropertyName = "distance_sale_threshold")]
-        public string DistanceSaleThreshold { get; set; }
-
-        [JsonProperty(PropertyName = "freight_taxable")]
-        public bool FreightTaxable { get; set; }
-        
-        #endregion
-
-        #region US/Canada attributes
-
-        [JsonProperty(PropertyName = "state")]
-        public string State { get; set; }
-
-        [JsonProperty(PropertyName = "county")]
-        public string County { get; set; }
-
-        [JsonProperty(PropertyName = "city")]
-        public string City { get; set; }
-
-        [JsonProperty(PropertyName = "zip")]
-        public string ZipCode { get; set; }
-
-        [JsonProperty(PropertyName = "state_rate")]
-        public string StateRate { get; set; }
-
-        [JsonProperty(PropertyName = "county_rate")]
-        public string CountyRate { get; set; }
-
-        [JsonProperty(PropertyName = "city_rate")]
-        public string CityRate { get; set; }
-
-        [JsonProperty(PropertyName = "combined_district_rate")]
-        public string CombinedDistrictRate { get; set; }
-
-        [JsonProperty(PropertyName = "combined_rate")]
-        public string CombinedRate { get; set; }
-
-        #endregion
-
-        /// <summary>
-        /// Returns true for USA or Canada rates
-        /// </summary>
-        public bool IsUsCanada
-        {
-            get { return string.IsNullOrEmpty(CountryName); }
-        }
-
-        /// <summary>
-        /// Tax rate
-        /// </summary>
-        public decimal TaxRate
-        {
-            get
-            {
-                decimal rate;
-                if (IsUsCanada)
-                    decimal.TryParse(CombinedRate, out rate);
-                else
-                    decimal.TryParse(StandardRate, out rate);
-
-                return rate;
-            }
+            return rate.CombinedRate.HasValue && rate.CountryRate != 0
+                ? rate.CombinedRate.Value
+                : (rate.StandardRate ?? 0);
         }
     }
 }

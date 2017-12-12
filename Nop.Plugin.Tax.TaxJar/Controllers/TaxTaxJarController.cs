@@ -1,7 +1,10 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Nop.Core.Domain.Directory;
 using Nop.Plugin.Tax.TaxJar.Models;
 using Nop.Services.Configuration;
 using Nop.Services.Directory;
@@ -10,6 +13,7 @@ using Nop.Services.Security;
 using Nop.Web.Framework;
 using Nop.Web.Framework.Controllers;
 using Nop.Web.Framework.Mvc.Filters;
+using Taxjar;
 
 namespace Nop.Plugin.Tax.TaxJar.Controllers
 {
@@ -25,6 +29,7 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
         private readonly ISettingService _settingService;
         private readonly TaxJarSettings _taxJarSettings;
         private readonly IPermissionService _permissionService;
+        private readonly IStateProvinceService _stateProvinceService;
 
         #endregion
 
@@ -34,13 +39,15 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             ILocalizationService localizationService,
             ISettingService settingService,
             TaxJarSettings taxJarSettings,
-            IPermissionService permissionService)
+            IPermissionService permissionService,
+            IStateProvinceService stateProvinceService)
         {
             this._countryService = countryService;
             this._localizationService = localizationService;
             this._settingService = settingService;
             this._taxJarSettings = taxJarSettings;
             this._permissionService = permissionService;
+            this._stateProvinceService = stateProvinceService;
         }
 
         #endregion
@@ -48,11 +55,30 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
         #region Utilities
 
         [NonAction]
-        protected void PrepareAddress(TestAddressModel model)
+        protected IList<SelectListItem> GetAvailableCountries()
         {
-            model.AvailableCountries = _countryService.GetAllCountries(showHidden: true)
-                .Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() }).ToList();
-            model.AvailableCountries.Insert(0, new SelectListItem { Text = _localizationService.GetResource("Admin.Address.SelectCountry"), Value = "0" });
+            var availableCountries = _countryService.GetAllCountries(showHidden: true).Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() }).ToList();
+            availableCountries.Insert(0, new SelectListItem { Text = _localizationService.GetResource("Admin.Address.SelectCountry"), Value = "0" });
+
+            return availableCountries;
+        }
+
+        [NonAction]
+        private void PrepareAvailableStates(TaxTaxJarModel model)
+        {
+            var selectedCountry = _countryService.GetCountryById(_taxJarSettings.FromCountry);
+            var selectedState = _stateProvinceService.GetStateProvinceById(_taxJarSettings.FromState);
+            var states = selectedCountry != null
+                ? _stateProvinceService.GetStateProvincesByCountryId(selectedCountry.Id, showHidden: true).ToList()
+                : new List<StateProvince>();
+            model.AvailableStates.Add(new SelectListItem { Text = "*", Value = "0" });
+            foreach (var s in states)
+                model.AvailableStates.Add(new SelectListItem
+                {
+                    Text = s.Name,
+                    Value = s.Id.ToString(),
+                    Selected = selectedState != null && s.Id == selectedState.Id
+                });
         }
 
         #endregion
@@ -64,8 +90,21 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePlugins))
                 return AccessDeniedView();
 
-            var model = new TaxTaxJarModel { ApiToken = _taxJarSettings.ApiToken };
-            PrepareAddress(model.TestAddress);
+            var model = new TaxTaxJarModel
+            {
+                ApiToken = _taxJarSettings.ApiToken,
+                TestAddress = {AvailableCountries = GetAvailableCountries()},
+
+                FromCountry = _taxJarSettings.FromCountry,
+                FromZip = _taxJarSettings.FromZip,
+                FromState = _taxJarSettings.FromState,
+                UseExtendedMethod = _taxJarSettings.UseExtendedMethod,
+                UseStandartRate = _taxJarSettings.UseStandartRate,
+                AvailableCountries = GetAvailableCountries()
+            };
+
+            //states
+            PrepareAvailableStates(model);
 
             return View("~/Plugins/Tax.TaxJar/Views/Configure.cshtml", model);
         }
@@ -81,9 +120,20 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
                 return Configure();
 
             _taxJarSettings.ApiToken = model.ApiToken;
+
+            _taxJarSettings.FromCountry = model.FromCountry;
+            _taxJarSettings.FromZip = model.FromZip;
+            _taxJarSettings.FromState = model.FromState;
+            _taxJarSettings.UseExtendedMethod = model.UseExtendedMethod;
+            _taxJarSettings.UseStandartRate = model.UseStandartRate;
+            model.AvailableCountries = GetAvailableCountries();
+
+            //states
+            PrepareAvailableStates(model);
+
             _settingService.SaveSetting(_taxJarSettings);
 
-            PrepareAddress(model.TestAddress);
+            model.TestAddress.AvailableCountries = GetAvailableCountries();
             SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
 
             return View("~/Plugins/Tax.TaxJar/Views/Configure.cshtml", model);
@@ -100,40 +150,47 @@ namespace Nop.Plugin.Tax.TaxJar.Controllers
                 return Configure();
 
             var testResult = new StringBuilder();
-            var country = _countryService.GetCountryById(model.TestAddress.CountryId);
-            var taxJarManager = new TaxJarManager { Api = _taxJarSettings.ApiToken };
-            var result = taxJarManager.GetTaxRate(
-                country?.TwoLetterIsoCode, 
-                model.TestAddress.City, 
-                null, 
-                model.TestAddress.Zip);
-            if (result.IsSuccess)
+
+            var taxJarManager = new TaxJarManager { Api = _taxJarSettings.ApiToken, CountryService = _countryService, StateProvinceService = _stateProvinceService};
+            try
             {
-                if (result.Rate.IsUsCanada)
+                var result = taxJarManager.GetTestTaxRate(_taxJarSettings, model.TestAddress);
+
+                if (string.IsNullOrEmpty(result.Country) || result.Country.Equals("CA", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    testResult.AppendFormat("State: {0}<br />", result.Rate.State);
-                    testResult.AppendFormat("County: {0}<br />", result.Rate.County);
-                    testResult.AppendFormat("City: {0}<br />", result.Rate.City);
-                    testResult.AppendFormat("State rate: {0}<br />", result.Rate.StateRate);
-                    testResult.AppendFormat("County rate: {0}<br />", result.Rate.CountyRate);
-                    testResult.AppendFormat("City rate: {0}<br />", result.Rate.CityRate);
-                    testResult.AppendFormat("Combined district rate: {0}<br />", result.Rate.CombinedDistrictRate);
-                    testResult.AppendFormat("<b>Total rate: {0}<b/>", result.Rate.CombinedRate);
+                    testResult.AppendFormat("State: {0}<br />", result.State);
+                    testResult.AppendFormat("County: {0}<br />", result.County);
+                    testResult.AppendFormat("City: {0}<br />", result.City);
+                    testResult.AppendFormat("State rate: {0}<br />", result.StateRate);
+                    testResult.AppendFormat("County rate: {0}<br />", result.CountyRate);
+                    testResult.AppendFormat("City rate: {0}<br />", result.CityRate);
+                    testResult.AppendFormat("Combined district rate: {0}<br />", result.CombinedDistrictRate);
+                    testResult.AppendFormat("<b>Total rate: {0}<b/>", result.CombinedRate);
                 }
                 else
                 {
-                    testResult.AppendFormat("Country: {0}<br />", result.Rate.CountryName);
-                    testResult.AppendFormat("Reduced rate: {0}<br />", result.Rate.ReducedRate);
-                    testResult.AppendFormat("Super reduced rate: {0}<br />", result.Rate.SuperReducedRate);
-                    testResult.AppendFormat("Parking rate: {0}<br />", result.Rate.ParkingRate);
-                    testResult.AppendFormat("<b>Standard rate: {0}<b/>", result.Rate.StandardRate);
+                    testResult.AppendFormat("Country: {0}<br />", result.Name);
+                    testResult.AppendFormat("Reduced rate: {0}<br />", result.ReducedRate);
+                    testResult.AppendFormat("Super reduced rate: {0}<br />", result.SuperReducedRate);
+                    testResult.AppendFormat("Parking rate: {0}<br />", result.ParkingRate);
+                    testResult.AppendFormat("<b>Standard rate: {0}<b/>", result.StandardRate);
                 }
             }
-            else
-                testResult.Append(result.ErrorMessage);
+            catch (TaxjarException e)
+            {
+                testResult.Append(e.Message);
+            }
+            catch (Newtonsoft.Json.JsonSerializationException e)
+            {
+                testResult.Append(e.Message);
+            }
 
             model.TestingResult = testResult.ToString();
-            PrepareAddress(model.TestAddress);
+            model.TestAddress.AvailableCountries = GetAvailableCountries();
+            model.AvailableCountries = GetAvailableCountries();
+
+            //states
+            PrepareAvailableStates(model);
 
             return View("~/Plugins/Tax.TaxJar/Views/Configure.cshtml", model);
         }

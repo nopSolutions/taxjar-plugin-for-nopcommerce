@@ -4,6 +4,46 @@
 
 @model Nop.Plugin.Tax.TaxJar.Models.TaxTaxJarModel
 
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#@Html.IdFor(model => model.FromCountry)").change(function () {
+            var selectedItem = $(this).val();
+            var ddlStates = $("#@Html.IdFor(model => model.FromState)");
+            $.ajax({
+                cache: false,
+                type: "GET",
+                url: "@(Url.Action("GetStatesByCountryId", "Country"))",
+                data: { "countryId": selectedItem, "addAsterisk": "true" },
+                success: function (data) {
+                    ddlStates.html('');
+                    $.each(data, function (id, option) {
+                        ddlStates.append($('<option></option>').val(option.id).html(option.name));
+                    });
+                },
+                error: function (xhr, ajaxOptions, thrownError) {
+                    alert('Failed to retrieve states.');
+                }
+            });
+        });
+    });
+</script>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#@Html.IdFor(model => model.UseExtendedMethod)").click(toggleOnePageCheckoutEnabled);
+        toggleOnePageCheckoutEnabled();
+    });
+
+    function toggleOnePageCheckoutEnabled() {
+        if ($('#@Html.IdFor(model => model.UseExtendedMethod)').is(':checked')) {
+            $('#pnlUseExtendedMethod').show();
+        }
+        else {
+            $('#pnlUseExtendedMethod').hide();
+        }
+    }
+</script>
+
 <form asp-controller="TaxTaxJar" asp-action="Configure" method="post">
     <div class="panel-group">
         <div class="panel panel-default">
@@ -17,6 +57,55 @@
                         <span asp-validation-for="ApiToken"></span>
                     </div>
                 </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-label asp-for="UseExtendedMethod" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="UseExtendedMethod" />
+                        <span asp-validation-for="UseExtendedMethod"></span>
+                    </div>
+                </div>
+                <nop-nested-setting asp-for="UseExtendedMethod">
+                    <div id="pnlUseExtendedMethod">
+                    <div class="form-group">
+                        <div class="col-md-3">
+                            <nop-label asp-for="FromCountry"/>
+                        </div>
+                        <div class="col-md-9">
+                            <nop-select asp-for="FromCountry" asp-items="Model.AvailableCountries"/>
+                            <span asp-validation-for="FromCountry"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="col-md-3">
+                            <nop-label asp-for="FromState"/>
+                        </div>
+                        <div class="col-md-9">
+                            <nop-select asp-for="FromState" asp-items="Model.AvailableStates"/>
+                            <span asp-validation-for="FromState"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="col-md-3">
+                            <nop-label asp-for="FromZip"/>
+                        </div>
+                        <div class="col-md-9">
+                            <nop-editor asp-for="FromZip"/>
+                            <span asp-validation-for="FromZip"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="col-md-3">
+                            <nop-label asp-for="UseStandartRate"/>
+                        </div>
+                        <div class="col-md-9">
+                            <nop-editor asp-for="UseStandartRate"/>
+                            <span asp-validation-for="UseStandartRate"></span>
+                        </div>
+                    </div>
+                    </div>
+                </nop-nested-setting>
                 <div class="form-group">
                     <div class="col-md-9 col-md-offset-3">
                         <input type="submit" name="save" class="btn btn-primary" value="@T("Admin.Common.Save")" />
