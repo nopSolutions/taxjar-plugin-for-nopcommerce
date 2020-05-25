@@ -3,7 +3,7 @@
 
 nopCommerce site: [https://www.nopcommerce.com](https://www.nopcommerce.com)
 
-Listing on nopCommerce "extensions and themes" catalog: [https://www.nopcommerce.com/p/2302/taxjarcom-tax-provider.aspx](https://www.nopcommerce.com/p/2302/taxjarcom-tax-provider.aspx)
+Listing on nopCommerce "extensions and themes" catalog: [https://www.nopcommerce.com/taxjar-plugin](https://www.nopcommerce.com/taxjar-plugin)
 
 TaxJar site: http://www.taxjar.com/
 
